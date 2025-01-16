@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Bio-Data Form</title>
+    <link rel="stylesheet" href="q1.css">
+</head>
+<body>
+    <div class="form-container">
+        <h1>Student Bio-Data Form</h1>
+        <form action="#" method="post">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="age">Age:</label>
+            <input type="number" id="age" name="age" required>
+
+            <label for="dob">Date of Birth:</label>
+            <input type="date" id="dob" name="dob" required>
+
+            <label>Programming Languages Known:</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="language" value="C">C</label>
+                <label><input type="checkbox" name="language" value="C++">C++</label>
+                <label><input type="checkbox" name="language" value="Java">Java</label>
+                <label><input type="checkbox" name="language" value="Python">Python</label>
+            </div>
+
+            <label>Which year are you in?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="year" value="1st Year" required> 1st Year</label>
+                <label><input type="radio" name="year" value="2nd Year"> 2nd Year</label>
+                <label><input type="radio" name="year" value="3rd Year"> 3rd Year</label>
+                <label><input type="radio" name="year" value="Final Year"> Final Year</label>
+            </div>
+
+            <button type="submit" class="submit-btn">Submit</button>
+        </form>
+    </div>
+
+    <div class="table-container">
+        <h2>Student Details</h2>
+        <table id="studentTable">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Date of Birth</th>
+                    <th>Languages Known</th>
+                    <th>Year</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ABC</td>
+                    <td>21</td>
+                    <td>2003-06-27</td>
+                    <td>C, Java, Python</td>
+                    <td>3rd Year</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>
