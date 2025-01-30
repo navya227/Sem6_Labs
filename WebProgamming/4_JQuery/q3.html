@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birthday Card Designer</title>
     <link rel="stylesheet" href="q3.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Include jQuery -->
 </head>
 <body>
 
 <div class="container">
-
     <div class="form-container">
         <h2>Design Your Birthday Card</h2>
         
@@ -35,15 +35,15 @@
         <label>Choose Border Style:</label>
         <div class="radio-buttons">
             <div class="radio-item">
-                <input class="rad_butt" type="radio" id="no-border" name="border-style" value="none" checked > 
+                <input class="rad_butt" type="radio" id="no-border" name="border-style" value="none" checked>
                 <label for="no-border">None</label>
             </div>
             <div class="radio-item">
-                <input class="rad_butt" type="radio" id="single-border" name="border-style" value="single"> 
+                <input class="rad_butt" type="radio" id="single-border" name="border-style" value="single">
                 <label for="single-border">Single</label>
             </div>
             <div class="radio-item">
-                <input class="rad_butt" type="radio" id="double-border" name="border-style" value="double"> 
+                <input class="rad_butt" type="radio" id="double-border" name="border-style" value="double">
                 <label for="double-border">Double</label>
             </div>
         </div>
@@ -57,7 +57,7 @@
         <label for="greeting-text">Enter Greeting Text:</label>
         <textarea id="greeting-text" placeholder="Enter your greeting here..."></textarea><br>
 
-        <button onclick="updateCard()">Update</button>
+        <button>Update</button>
     </div>
 
     <div class="card-container" id="card-container">
@@ -66,6 +66,6 @@
     </div>
 </div>
 
-<script src="q3.js"></script>
+<script src="q3.js"></script> <!-- Link to external script.js -->
 </body>
 </html>

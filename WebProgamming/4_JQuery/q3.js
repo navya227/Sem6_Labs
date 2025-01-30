@@ -1,50 +1,50 @@
-function updateCard() {
+$(document).ready(function() {
+    function updateCard() {
+        let bgColor = $("#bg-color").val();
+        let font = $("#font-select").val();
+        let fontSize = $("#font-size").val();
+        let borderStyle = $("input[name='border-style']:checked").val();
+        let addPicture = $("#add-picture").prop("checked");
+        let greetingText = $("#greeting-text").val();
 
-    let bgColor = document.getElementById("bg-color").value;
-    let font = document.getElementById("font-select").value;
-    let fontSize = document.getElementById("font-size").value;
-    let borderStyle = document.querySelector('input[name="border-style"]:checked').value;
-    let addPicture = document.getElementById("add-picture").checked;
-    let greetingText = document.getElementById("greeting-text").value;
-    
+        let leftContainer = $(".form-container");
+        let rightContainer = $(".card-container");
 
-    let leftContainer = document.querySelector(".form-container");
-    let rightContainer = document.querySelector(".card-container");
-    
-    leftContainer.style.backgroundColor = bgColor;
-    rightContainer.style.backgroundColor = darkenColor(bgColor);
+        leftContainer.css("background-color", bgColor);
+        rightContainer.css("background-color", darkenColor(bgColor));
 
-    document.body.style.fontFamily = font;
-    document.getElementById("card-greeting").style.fontFamily = font;
-    document.getElementById("card-greeting").style.fontSize = fontSize + "px";
+        $("body").css("font-family", font);
+        $("#card-greeting").css({
+            "font-family": font,
+            "font-size": fontSize + "px"
+        });
 
-    if (borderStyle === "none") {
-        rightContainer.style.border = "none";
-    } else if (borderStyle === "single") {
-        rightContainer.style.border = "1px solid #ddd";
-    } else if (borderStyle === "double") {
-        rightContainer.style.border = "4px double #ddd";
+        if (borderStyle === "none") {
+            rightContainer.css("border", "none");
+        } else if (borderStyle === "single") {
+            rightContainer.css("border", "1px solid #ddd");
+        } else if (borderStyle === "double") {
+            rightContainer.css("border", "4px double #ddd");
+        }
+
+        $("#card-greeting").text(greetingText);
+
+        if (addPicture) {
+            $("#card-image").attr("src", "bd.avif").show();
+        } else {
+            $("#card-image").hide();
+        }
     }
 
-
-    document.getElementById("card-greeting").textContent = greetingText;
-
-
-    if (addPicture) {
-        document.getElementById("card-image").src = "bd.avif";
-        document.getElementById("card-image").style.display = "block";
-    } else {
-        document.getElementById("card-image").style.display = "none";
+    function darkenColor(color) {
+        let colors = {
+            yellow: "#FFB200",
+            lightblue: "#4682B4",
+            lightgreen: "#2E8B57",
+            lightpink: "#d66fa8"
+        };
+        return colors[color] || "#000000";
     }
-}
 
-
-function darkenColor(color) {
-    let colors = {
-        yellow: "#FFB200",
-        lightblue: "#4682B4",
-        lightgreen: "#2E8B57",
-        lightpink: "#d66fa8"
-    };
-    return colors[color] || "#000000";
-}
+    $("button").click(updateCard);  // Event listener for the button click
+});
