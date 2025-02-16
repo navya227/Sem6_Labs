@@ -1,44 +1,57 @@
 import torch
-import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+from torch import nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
 
-x = torch.tensor([5.0, 7.0, 12.0, 16.0, 20.0]).view(-1, 1)  # Reshaped for NN input
-y = torch.tensor([40.0, 120.0, 180.0, 210.0, 240.0]).view(-1, 1)
+x = torch.tensor([5.0, 7.0, 12.0, 16.0, 20.0]).view(-1,1)
+y = torch.tensor([40.0, 120.0, 180.0, 210.0, 240.0]).view(-1,1)
+lr = torch.tensor(0.001)
 
-class RegressionModel(nn.Module):
+class myData (Dataset):
+    def __init__(self,X,Y):
+        self.X = torch.tensor(X,dtype=torch.float32)
+        self.Y = torch.tensor(Y,dtype=torch.float32)
+    def __len__(self):
+        return len(self.X)
+    def __getitem__(self, idx):
+        return self.X[idx],self.Y[idx]
+
+dataset = myData(x,y)
+dataloader = DataLoader(dataset,batch_size=1,shuffle=True)
+
+class LinearModel(nn.Module):
     def __init__(self):
-        super(RegressionModel, self).__init__()
-        self.w = torch.nn.Parameter(torch.rand([1]))
-        self.b = torch.nn.Parameter(torch.rand([1]))
+        super().__init__()
+        self.w = nn.Parameter(torch.tensor(1.))
+        self.b = nn.Parameter(torch.tensor(1.))
 
-    def forward(self, x):
-        return self.w*x+self.b
+    def forward(self,x):
+        return self.w * x + self.b
 
-model = RegressionModel()
-
+model = LinearModel()
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001)
+optimizer = optim.SGD(model.parameters(), lr=lr)
 
 loss_list = []
 
-for epoch in range(100):
-    model.train()
+epochs = 100
+for epoch in range(epochs):
+    epoch_loss = 0.0
+    for i, (inputs, targets) in enumerate(dataloader):
 
-    # Forward pass
-    y_pred = model(x)
-    loss = criterion(y_pred, y)
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
 
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    loss_list.append(loss.item())
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-plt.plot(loss_list)
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.title('Loss Curve')
-plt.show()
+        epoch_loss += loss.item()
 
-print("Learned weight:", model.w.item())
-print("Learned bias:", model.b.item())
+    avg_loss = epoch_loss / len(dataloader)
+    loss_list.append(avg_loss)
+
+    print(f"Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}")
+
+print(f"Final W (Weight): {model.w.item()}")
+print(f"Final B (Bias): {model.b.item()}")
