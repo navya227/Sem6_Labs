@@ -1,47 +1,66 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
+from torch import nn
+from torch.utils.data import DataLoader, Dataset
 import matplotlib.pyplot as plt
 
-X1 = torch.tensor([3, 4, 5, 6, 2]).view(-1, 1).float()
-X2 = torch.tensor([8, 5, 7, 3, 1]).view(-1, 1).float()
-Y = torch.tensor([-3.7, 3.5, 2.5, 11.5, 5.7]).view(-1, 1).float()
-iters = 1000
+x1 = torch.tensor([3.,4.,5.,6.,2.]).view(-1,1)
+x2 = torch.tensor([8.,5.,7.,3.,1.]).view(-1,1)
+x = torch.cat((x1,x2),dim=1)
+y = torch.tensor([-3.7,3.5,2.5,11.5,5.7]).view(-1,1)
+lr = 0.001
+epochs = 100
 
-X = torch.cat((X1, X2), dim=1)
+class myData(Dataset):
+    def __init__(self,X,Y):
+        self.X = X
+        self.Y = Y
+    def __len__(self):
+        return len(self.X)
+    def __getitem__(self, idx):
+        return self.X[idx],self.Y[idx]
 
-class MLR(nn.Module):
+dataset = myData(x,y)
+dataloader = DataLoader(dataset,batch_size=1,shuffle=True)
+
+class LinMod(nn.Module):
     def __init__(self):
-        super(MLR, self).__init__()
-        self.linear = nn.Linear(2, 1)  # 2 features, 1 output
-
-    def forward(self, x):
+        super().__init__()
+        self.linear = nn.Linear(2,1)
+    def forward(self,x):
         return self.linear(x)
 
-model = MLR()
+model = LinMod()
 criterion = nn.MSELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001)
+optimizer = optim.SGD(model.parameters(),lr = lr)
 
-# List to store the loss values for plotting
 loss_list = []
-for epoch in range(iters):
-    model.train()
 
-    # Forward pass
-    Y_pred = model(X)
-    loss = criterion(Y_pred, Y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+for epoch in range(epochs):
+    l= 0.0
+    for i,(ip,tar) in enumerate(dataloader):
+        yp = model(ip)
+        loss = criterion(yp,tar)
 
-    loss_list.append(loss.item())
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-plt.plot(loss_list, 'r')
-plt.tight_layout()
-plt.xlabel("Epochs/Iterations")
-plt.ylabel("Loss")
-plt.title("Loss Curve")
+        l+=loss.item()
+
+    l/=len(x)
+    loss_list.append(l)
+
+print(f"Final W (Weight): {model.linear.weight.data}")
+print(f"Final B (Bias): {model.linear.bias.item()}")
+
+print("Predicted output for 3,2")
+test=torch.tensor([(3.,2.)])
+print(model(test).item())
+
+plt.plot(range(epochs), loss_list)
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Loss over Epochs')
 plt.show()
 
-print("Learned weight (w):", model.linear.weight)
-print("Learned bias (b):", model.linear.bias)
