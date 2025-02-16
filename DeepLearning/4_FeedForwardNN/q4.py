@@ -1,73 +1,79 @@
 import torch
+from matplotlib import pyplot as plt
+from torch.utils.data import Dataset, DataLoader
 import torch.optim as optim
-from sklearn.metrics import confusion_matrix
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
 import torch.nn as nn
-torch.manual_seed(0)
+import torchvision.datasets as datasets
+from sklearn.metrics import confusion_matrix
+from torchvision.transforms import ToTensor
 
-class FeedForwardNN(nn.Module):
-    def __init__(self):
-        super(FeedForwardNN, self).__init__()
-        self.fc1 = nn.Linear(28*28, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, 10)
-        self.relu = nn.ReLU()
+torch.manual_seed(42)
 
-    def forward(self, x):
-        x = x.view(-1, 28*28)
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+batch_size = 32
+trainset = datasets.MNIST(root='./data/', train=True, download=True, transform=ToTensor())
+trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
-def main():
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-    train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+testset = datasets.MNIST(root='./data/', train=False, download=True, transform=ToTensor())
+testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+class FFN(nn.Module):
+	def __init__(self):
+		super().__init__()
+		self.linear1=nn.Linear(28*28,100, bias=True)
+		self.linear2=nn.Linear(100,100, bias=True)
+		self.linear3=nn.Linear(100,10, bias=True)
+		self.relu=nn.ReLU()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = FeedForwardNN().to(device)
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+	def forward(self,x):
+		x=x.view(-1,28*28)
+		x=self.linear1(x)
+		x=self.relu(x)
+		x=self.linear2(x)
+		x=self.relu(x)
+		x=self.linear3(x)
 
-    epochs = 5
-    for epoch in range(epochs):
-        model.train()
-        running_loss = 0.0
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
+		return x
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = loss_fn(outputs, labels)
-            loss.backward()
-            optimizer.step()
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model=FFN().to(device)
 
-            running_loss += loss.item()
+criterion=torch.nn.CrossEntropyLoss()
+optimizer=optim.SGD(model.parameters(),lr=0.01)
+loss_list=[]
 
-        print(f"Epoch [{epoch+1}/{epochs}], Loss: {running_loss/len(train_loader):.4f}")
+epochs = 5
+for epoch in range(epochs):
+	epoch_loss=0
+	for i,(inputs,labels) in enumerate(trainloader):
+		inputs=inputs.to(device)
+		labels=labels.to(device)
+		optimizer.zero_grad()
+		outputs=model(inputs)
+		loss=criterion(outputs,labels)
+		epoch_loss+=loss
+		loss.backward()
+		optimizer.step()
 
-    model.eval()
-    all_preds = []
-    all_labels = []
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            all_preds.extend(predicted.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
+	epoch_loss/=len(trainloader)
+	print(f"Epoch {epoch+1} loss : {epoch_loss.item()}")
+	loss_list.append(epoch_loss.item())
 
-    conf_matrix = confusion_matrix(all_labels, all_preds)
-    print('Confusion Matrix:')
-    print(conf_matrix)
+plt.plot(list(range(epochs)),loss_list)
+plt.show()
 
-    num_params = sum(p.numel() for p in model.parameters())
-    print(f"Total number of learnable parameters in the model: {num_params}")
+all_preds = []
+all_labels = []
+with torch.no_grad():
+		for inputs, labels in testloader:
+			inputs, labels = inputs.to(device), labels.to(device)
+			outputs = model(inputs)
+			_, predicted = torch.max(outputs, 1)
+			all_preds.extend(predicted.cpu().numpy())
+			all_labels.extend(labels.cpu().numpy())
 
-if __name__ == "__main__":
-    main()
+conf_matrix = confusion_matrix(all_labels, all_preds)
+print('Confusion Matrix:')
+print(conf_matrix)
+
+num_params = sum(p.numel() for p in model.parameters())
+print(f"Total number of learnable parameters in the model: {num_params}")
