@@ -1,42 +1,43 @@
 import torch
-import matplotlib.pyplot as plt
 
-X = torch.tensor([2,4])
+w = torch.tensor(1.0,requires_grad=True)
+b = torch.tensor(1.0,requires_grad = True)
+lr = torch.tensor(0.001)
 
-Y = torch.tensor([20,40])
+x = torch.tensor([2.,4.])
+y = torch.tensor([20.,40.])
 
-w = torch.tensor(1.0, requires_grad=True)
-b = torch.tensor(1.0, requires_grad=True)
-
-step_size = 0.001
-epochs = 2
 loss_list = []
 
-for epoch in range(epochs):
-    Y_pred = w * X + b
+for epoch in range(2):
+    loss = 0.0
+    for i in range(len(x)):
+        yp = x[i]*w + b
+        loss += (yp-y[i])**2
 
-    loss = torch.mean((Y_pred - Y) ** 2)
-    loss_list.append(loss.item())
-
+    loss /= len(x)
+    loss_list.append(loss)
     loss.backward()
 
-    print(f"Epoch {epoch + 1}:")
-    print(f"  w.grad: {w.grad.item()}")
-    print(f"  b.grad: {b.grad.item()}")  #
-
     with torch.no_grad():
-        w -= step_size * w.grad
-        b -= step_size * b.grad
+        w -= lr * w.grad
+        b -= lr * b.grad
 
     w.grad.zero_()
     b.grad.zero_()
 
-    print(f"  Updated w: {w.item()}")
-    print(f"  Updated b: {b.item()}")
-    print('-' * 40)
+print(f"w = {w.item()}")
+print(b.item())
 
-plt.plot(loss_list, 'r')
-plt.xlabel("Epochs/Iterations")
-plt.ylabel("Loss")
-plt.title("Loss Curve")
-plt.show()
+w = torch.tensor([1.])
+b = torch.tensor([1.])
+
+
+for epochs in range(2):
+    for i in range(len(x)):
+        yp = w*x[i] + b
+        error = yp-y[i]
+        w-= lr * error * x[i]
+        b-= lr * error
+
+print(f"ANALYTICAL SOLN W : {w.item()} B : {b.item()}")
