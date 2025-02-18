@@ -70,3 +70,20 @@ print(f"Total number of parameters: {total_params}")
 
 plt.plot(list(range(epochs)), loss_list)
 plt.show()
+
+# model.eval()
+# correct = 0
+# total = 0
+
+# with torch.no_grad():
+#     for i, (inputs, labels) in enumerate(dataloader):
+#         inputs, labels = inputs.to(device), labels.to(device)
+
+#         outputs = model(inputs)
+#         predicted = torch.round(outputs)  # Round to 0 or 1
+
+#         correct += (predicted == labels).sum().item()
+#         total += labels.size(0)
+
+# accuracy = correct / total * 100
+# print(f"Accuracy: {accuracy:.2f}%")
