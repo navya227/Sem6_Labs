@@ -32,12 +32,23 @@ print(b.item())
 w = torch.tensor([1.])
 b = torch.tensor([1.])
 
-
 for epochs in range(2):
+    l = 0.0
+    dw = 0.0
+    db = 0.0
     for i in range(len(x)):
-        yp = w*x[i] + b
-        error = yp-y[i]
-        w-= lr * error * x[i]
-        b-= lr * error
+        yp = w * x[i] + b
+        dw += 2 * (yp - y[i]) * x[i]
+        db += 2 * (yp - y[i])
+        l += (yp - y[i]) ** 2
+    l /= len(x)
+    dw /= len(x)
+    db /= len(x)
+
+    w -= lr * dw
+    b -= lr * db
+
+    print(w)
+    print(b)
 
 print(f"ANALYTICAL SOLN W : {w.item()} B : {b.item()}")
