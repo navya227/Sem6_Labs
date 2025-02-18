@@ -99,3 +99,10 @@ print(f"Total Parameters = {num_para}")
 
 torch.save(model,"../06_TransferLearning/model.pt")
 torch.save(model.state_dict(), '../06_TransferLearning/mnist_stateDict.pt')
+
+# Plot the first image in the batch along with prediction
+#         if i < 5:  # Show 5 example images
+#             plt.imshow(inp[0].cpu().squeeze(), cmap='gray')  # Remove batch dimension and plot
+#             plt.title(f'Predicted: {pred[0].item()}, Actual: {tar[0].item()}')
+#             plt.axis('off')
+#             plt.show()
