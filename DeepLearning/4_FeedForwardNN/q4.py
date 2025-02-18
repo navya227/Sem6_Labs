@@ -19,19 +19,17 @@ testloader = DataLoader(testset, batch_size=batch_size, shuffle=False)
 class FFN(nn.Module):
 	def __init__(self):
 		super().__init__()
-		self.linear1=nn.Linear(28*28,100, bias=True)
-		self.linear2=nn.Linear(100,100, bias=True)
-		self.linear3=nn.Linear(100,10, bias=True)
-		self.relu=nn.ReLU()
+		self.net = nn.Sequential(
+			nn.Linear(28 * 28, 100, bias=True),
+			nn.Linear(100, 100, bias=True),
+			nn.Linear(100, 10, bias=True),
+			nn.ReLU()
+		)
+	# 	number of para = [(28x28x100)+100]+[(100x100]+100+[(100x10)+10]
 
 	def forward(self,x):
 		x=x.view(-1,28*28)
-		x=self.linear1(x)
-		x=self.relu(x)
-		x=self.linear2(x)
-		x=self.relu(x)
-		x=self.linear3(x)
-
+		x = self.net(x)
 		return x
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -47,12 +45,13 @@ for epoch in range(epochs):
 	for i,(inputs,labels) in enumerate(trainloader):
 		inputs=inputs.to(device)
 		labels=labels.to(device)
+
 		optimizer.zero_grad()
 		outputs=model(inputs)
 		loss=criterion(outputs,labels)
-		epoch_loss+=loss
 		loss.backward()
 		optimizer.step()
+		epoch_loss+=loss
 
 	epoch_loss/=len(trainloader)
 	print(f"Epoch {epoch+1} loss : {epoch_loss.item()}")
@@ -61,6 +60,7 @@ for epoch in range(epochs):
 plt.plot(list(range(epochs)),loss_list)
 plt.show()
 
+model.eval()
 all_preds = []
 all_labels = []
 with torch.no_grad():
