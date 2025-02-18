@@ -1,32 +1,24 @@
 import torch
 import torch.nn as nn
+
+img = torch.rand(1,1,6,6)
+
+conv = nn.Conv2d(1,3,3,1,0)
+output = conv(img)
+
+print("outimage=", output.shape)
+print("in image=", img.shape)
+
+
 import torch.nn.functional as F
 
-image = torch.rand(6, 6)
-print("Original Image:")
-print(image)
-print("Image shape:", image.shape)
+img = torch.rand(1,1,6,6)
+kernel = torch.rand(3,1,3,3) # [out_channels, in_channels, kernel_height, kernel_width]
+op = F.conv2d(img,kernel,stride=1,padding=0)
 
-image = image.unsqueeze(dim=0).unsqueeze(dim=0)
-print("\nImage after adding batch and channel dimensions:")
-print(image)
-print("Image shape:", image.shape)
+print("op=", op.shape)
+print("in image=", img.shape)
+print("kernel=", kernel.shape)
 
-conv2d_layer = nn.Conv2d(in_channels=1, out_channels=3, kernel_size=3, stride=1, padding=0, bias=False)
-
-output_conv2d = conv2d_layer(image)
-print("\nOutput of torch.nn.Conv2d:")
-print(output_conv2d)
-print("Output shape of torch.nn.Conv2d:", output_conv2d.shape)
-
-weights = conv2d_layer.weight
-print("\nKernel weights of Conv2d layer:")
-print(weights)
-
-output_conv2d_func = F.conv2d(image, weights, stride=1, padding=0)
-print("\nOutput of torch.nn.functional.conv2d:")
-print(output_conv2d_func)
-print("Output shape of torch.nn.functional.conv2d:", output_conv2d_func.shape)
-
-print("\nAre both outputs equal?")
-print(torch.allclose(output_conv2d, output_conv2d_func))
+# output dim = (hin - k + 2p / s) + 1
+# no.para = (k*k)(in_channel*out_channel) + out_channel
