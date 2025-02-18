@@ -42,10 +42,10 @@ loss_list = []
 for epoch in range(epochs):
     l = 0.0
     for i, (ip, tar) in enumerate(dataloader):
-        yp = model(ip)
-        loss = criterion(yp, tar)
 
         optimizer.zero_grad()
+        yp = model(ip)
+        loss = criterion(yp, tar)
         loss.backward()
         optimizer.step()
 
@@ -63,3 +63,11 @@ plt.show()
 
 print(f"Final W (Weight): {model.linear.weight.item()}")
 print(f"Final B (Bias): {model.linear.bias.item()}")
+
+# with torch.no_grad():
+#     outputs = model(inputs)
+#     predicted = (outputs >= 0.5).float()  # Converts probabilities to 0 or 1
+#     correct += (predicted == labels).sum().item()
+#     total += labels.size(0)
+#
+# accuracy = correct / total * 100
