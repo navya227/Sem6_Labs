@@ -1,105 +1,107 @@
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#include <cuda_runtime.h>
 
-#define N 1024
-#define MAX_WORD_LENGTH 100
+__global__ void countWordOccurrences(const char **d_words, const int *d_wLen, int n, const char *d_key, int key_len, int *d_count) {
+    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+    if (idx >= n) return;
 
-__global__ void CUDACountWord(char *text, int textLength, char *word, int wordLength, unsigned int *d_count) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    // Only process valid starting positions
-    if (i <= textLength - wordLength) {
-        bool match = true;
-        
-        // Compare each character of the word
-        for (int j = 0; j < wordLength; j++) {
-            if (text[i + j] != word[j]) {
+    int word_len = d_wLen[idx];
+    bool match = true;
+    if (word_len == key_len) {
+        for (int i = 0; i < word_len; i++) {
+            if (d_words[idx][i] != d_key[i]) {
                 match = false;
                 break;
             }
         }
-        
-        // If we found a match, increment the counter
-        if (match) {
-            atomicAdd(d_count, 1);
-        }
+    } else {
+        match = false;
+    }
+
+    if (match) {
+        atomicAdd(d_count, 1);
     }
 }
 
 int main() {
-    char text[N];
-    char word[MAX_WORD_LENGTH];
-    char *d_text, *d_word;
-    unsigned int count = 0, result;
-    unsigned int *d_count;
+    char h_sent[1024];
+    char h_key[100];
+
+    printf("Enter the sent: ");
+    fgets(h_sent, sizeof(h_sent), stdin);
     
-    // Get the input text
-    printf("Enter a string: ");
-    fgets(text, N, stdin);
-    int textLength = strlen(text);
-    if (text[textLength - 1] == '\n') text[textLength - 1] = '\0'; // Remove newline
-    textLength = strlen(text); // Recalculate length after newline removal
-    
-    // Get the word to search for
-    printf("Enter word to search: ");
-    fgets(word, MAX_WORD_LENGTH, stdin);
-    int wordLength = strlen(word);
-    if (word[wordLength - 1] == '\n') word[wordLength - 1] = '\0'; // Remove newline
-    wordLength = strlen(word); // Recalculate length after newline removal
-    
-    // Timing events
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start, 0);
-    
-    // Allocate memory
-    cudaMalloc((void**)&d_text, textLength * sizeof(char));
-    cudaMalloc((void**)&d_word, wordLength * sizeof(char));
-    cudaMalloc((void**)&d_count, sizeof(unsigned int));
-    
-    // Copy data to device
-    cudaMemcpy(d_text, text, textLength * sizeof(char), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_word, word, wordLength * sizeof(char), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_count, &count, sizeof(unsigned int), cudaMemcpyHostToDevice);
-    
-    // Check for errors
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        printf("CUDA ERROR: %s\n", cudaGetErrorString(error));
+    if (h_sent[strlen(h_sent) - 1] == '\n') {
+        h_sent[strlen(h_sent) - 1] = '\0';
     }
-    
-    // Calculate grid and block dimensions
-    // For a simple approach, use 1 thread per potential starting position
-    int threadsPerBlock = 256;
-    int numBlocks = (textLength + threadsPerBlock - 1) / threadsPerBlock;
-    
-    // Launch kernel
-    CUDACountWord<<<numBlocks, threadsPerBlock>>>(d_text, textLength, d_word, wordLength, d_count);
-    
-    error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        printf("CUDA ERROR: %s\n", cudaGetErrorString(error));
+
+    printf("Enter the word to search for: ");
+    scanf("%s", h_key);
+
+    int n = 0;
+    int h_wLen[100];
+    char h_words[100][100]; 
+
+    int i = 0, j = 0;
+    while (h_sent[i] != '\0') {
+        if (h_sent[i] != ' ') {
+            h_words[n][j++] = h_sent[i];
+        } else {
+            if (j > 0) {
+                h_words[n][j] = '\0';  
+                h_wLen[n] = j; 
+                n++;
+                j = 0;  
+            }
+        }
+        i++;
     }
-    
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    float elapsedTime;
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    
-    // Copy result back to host
-    cudaMemcpy(&result, d_count, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-    
-    printf("Total occurrences of '%s' = %u\n", word, result);
-    printf("Time taken: %f ms\n", elapsedTime);
-    
-    // Free memory
-    cudaFree(d_text);
-    cudaFree(d_word);
+
+    int *d_wLen;
+    const char **d_words;
+    int *d_count;
+    char *d_key;
+    int key_len = strlen(h_key);
+
+    cudaMalloc((void**)&d_words, n * sizeof(char*));
+    cudaMalloc((void**)&d_wLen, n * sizeof(int));
+    cudaMalloc((void**)&d_count, sizeof(int));
+    cudaMalloc((void**)&d_key, key_len * sizeof(char));
+
+    cudaMemcpy(d_wLen, h_wLen, n * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_key, h_key, key_len * sizeof(char), cudaMemcpyHostToDevice);
+
+    const char **d_words_ptr;
+    cudaMalloc((void**)&d_words_ptr, n * sizeof(const char*));
+
+    char *d_words_device[n];
+    for (int i = 0; i < n; i++) {
+        cudaMalloc((void**)&d_words_device[i], (h_wLen[i] + 1) * sizeof(char)); // +1 for null terminator
+        cudaMemcpy(d_words_device[i], h_words[i], h_wLen[i] + 1, cudaMemcpyHostToDevice);
+    }
+
+    cudaMemcpy(d_words_ptr, d_words_device, n * sizeof(const char*), cudaMemcpyHostToDevice);
+
+    int h_count = 0;
+    cudaMemcpy(d_count, &h_count, sizeof(int), cudaMemcpyHostToDevice);
+
+    int blockSize = 256;
+    int numBlocks = (n + blockSize - 1) / blockSize;
+    countWordOccurrences<<<numBlocks, blockSize>>>(d_words_ptr, d_wLen, n, d_key, key_len, d_count);
+
+    cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
+
+    printf("The word '%s' occurs %d times in the sent.\n", h_key, h_count);
+
+    for (int i = 0; i < n; i++) {
+        cudaFree(d_words_device[i]);
+    }
+    cudaFree(d_words);
+    cudaFree(d_wLen);
     cudaFree(d_count);
-    
+    cudaFree(d_key);
+    cudaFree(d_words_ptr);
+
     return 0;
 }
