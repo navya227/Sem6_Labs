@@ -1,117 +1,106 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import os
-import unicodedata
-import string
-import random
+import numpy as np
 
-# Character set
-all_letters = string.ascii_letters + " .,;'"
-n_letters = len(all_letters)
+# Sample text data
+text = "hello this is a simple next character prediction example. it is fun!"
 
+# Create a set of unique characters in the text
+chars = sorted(set(text))
+char_to_idx = {ch: idx for idx, ch in enumerate(chars)}  # Map char to index
+idx_to_char = {idx: ch for idx, ch in enumerate(chars)}  # Map index to char
 
-# Helper function to convert Unicode to ASCII
-def unicode_to_ascii(s):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if c in all_letters
-    )
+# Prepare the training sequences
+sequence_length = 10  # We will use 10 previous characters to predict the next one
+data_in = []
+data_out = []
 
+for i in range(len(text) - sequence_length):
+    seq_in = text[i:i+sequence_length]
+    seq_out = text[i+sequence_length]
+    data_in.append([char_to_idx[ch] for ch in seq_in])
+    data_out.append(char_to_idx[seq_out])
 
-# Define RNN Model for Next Character Prediction
-class CharRNN(nn.Module):
+# Convert the input and output data to tensors
+X = torch.tensor(data_in, dtype=torch.long)
+y = torch.tensor(data_out, dtype=torch.long)
+
+# One-hot encode the inputs
+def one_hot_encode(x, vocab_size):
+    return torch.eye(vocab_size)[x]
+
+# Convert inputs to one-hot encoded tensors
+X_one_hot = torch.stack([one_hot_encode(x, len(chars)) for x in X])
+
+print(f'Input Tensor Shape: {X_one_hot.shape}, Output Tensor Shape: {y.shape}')
+
+# Define the RNN Model for Next Character Prediction
+class RNNModel(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
-        super(CharRNN, self).__init__()
-        self.hidden_size = hidden_size
+        super(RNNModel, self).__init__()
+        self.rnn = nn.RNN(input_size=input_size, hidden_size=hidden_size, num_layers=1, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
 
-        self.i2h = nn.Linear(input_size + hidden_size, hidden_size)
-        self.i2o = nn.Linear(input_size + hidden_size, output_size)
-        self.softmax = nn.LogSoftmax(dim=1)
+    def forward(self, x):
+        rnn_out, _ = self.rnn(x)  # Get the RNN outputs
+        rnn_out = rnn_out[:, -1, :]  # Get the last output (for sequence prediction)
+        output = self.fc(rnn_out)
+        return output
 
-    def forward(self, input, hidden):
-        combined = torch.cat((input, hidden), 1)
-        hidden = self.i2h(combined)
-        output = self.i2o(combined)
-        output = self.softmax(output)
-        return output, hidden
+# Model parameters
+input_size = len(chars)  # Size of the vocabulary
+hidden_size = 128        # Number of hidden units in the RNN
+output_size = len(chars) # Size of the vocabulary (output size)
 
-    def init_hidden(self):
-        return torch.zeros(1, self.hidden_size)
+# Initialize the RNN model
+model = RNNModel(input_size, hidden_size, output_size)
 
-
-# Initialize model
-n_hidden = 128
-char_rnn = CharRNN(n_letters, n_hidden, n_letters)
-
-
-# Convert character to tensor
-def char_to_tensor(char):
-    tensor = torch.zeros(1, n_letters)
-    tensor[0][all_letters.index(char)] = 1
-    return tensor  # Remove extra unsqueeze
-
-
-# Convert line to tensor
-def line_to_tensor(line):
-    tensor = torch.zeros(len(line), 1, n_letters)
-    for li, letter in enumerate(line):
-        tensor[li][0][all_letters.index(letter)] = 1
-    return tensor
-
-
-# Training setup
-criterion = nn.NLLLoss()
-optimizer = optim.SGD(char_rnn.parameters(), lr=0.005)
-
-
-def train(input_line_tensor, target_line_tensor):
-    hidden = char_rnn.init_hidden()
-    optimizer.zero_grad()
-
-    loss = 0
-    for i in range(input_line_tensor.size(0)):
-        output, hidden = char_rnn(input_line_tensor[i], hidden)
-        loss += criterion(output, target_line_tensor[i].unsqueeze(0))
-
-    loss.backward()
-    optimizer.step()
-    return loss.item() / input_line_tensor.size(0)
-
+# Loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # Training loop
-n_iters = 50000
-data = ["hello", "world", "python", "torch", "character", 'type']
-for iter in range(n_iters):
-    word = random.choice(data)
-    input_tensor = line_to_tensor(word[:-1])
-    target_tensor = torch.tensor([all_letters.index(c) for c in word[1:]], dtype=torch.long)
-    loss = train(input_tensor, target_tensor)
+num_epochs = 1000
+for epoch in range(num_epochs):
+    model.train()
+    
+    # Forward pass
+    output = model(X_one_hot)
+    
+    # Compute loss
+    loss = criterion(output, y)
+    
+    # Backpropagation and optimization
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    
+    if (epoch + 1) % 10 == 0:
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}')
 
-    if iter % 5000 == 0:
-        print(f'Iteration {iter}, Loss: {loss:.4f}')
+# Function to predict the next character
+def predict(model, input_sequence, char_to_idx, idx_to_char, sequence_length=10):
+    model.eval()  # Set model to evaluation mode
+    input_indices = [char_to_idx[ch] for ch in input_sequence]
+    input_tensor = torch.tensor(input_indices).unsqueeze(0)  # Add batch dimension
+    
+    # One-hot encode the input
+    input_tensor = one_hot_encode(input_tensor, len(chars))
 
+    # Get the model's prediction
+    output = model(input_tensor)
+    
+    # Convert the output to a predicted character
+    _, predicted_idx = torch.max(output, 1)
+    predicted_char = idx_to_char[predicted_idx.item()]
+    return predicted_char
 
-# Predict next character
-def predict_next(input_char, hidden):
-    input_tensor = char_to_tensor(input_char)  # No need to unsqueeze
-    output, hidden = char_rnn(input_tensor, hidden)
-    top_v, top_i = output.topk(1)
-    predicted_index = top_i[0].item()
-    return all_letters[predicted_index], hidden
-
-
-# Generate a sequence
-def generate(start_char, length=10):
-    hidden = char_rnn.init_hidden()
-    output_str = start_char
-
-    for _ in range(length):
-        next_char, hidden = predict_next(output_str[-1], hidden)
-        output_str += next_char
-
-    return output_str
-
-
-# Example usage
-print(generate("to"))
+# Test the model on an example sequence
+test_input = "hello this is a "
+for i in range(10):
+    predicted_char = predict(model, test_input, char_to_idx, idx_to_char)
+    print(f"Input: {test_input}")
+    print(f"Predicted Next Character: {predicted_char}")
+    # test_input=test_input[1:]
+    test_input=test_input+predicted_char
+# print(type(predicted_char))
