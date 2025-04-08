@@ -1,84 +1,84 @@
-import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import pandas as pd
+import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from torch import nn
+
 df = pd.read_csv("daily.csv")
-# Preprocess the data - Drop NA values in the dataset
 df = df.dropna()
 y = df['Price'].values
-x = np.arange(1, len(y), 1)
-# Normalize the input range between 0 and 1
-minm = y.min()
-maxm = y.max()
-y = (y - minm) / (maxm - minm)
-Sequence_Length = 10
-X = []
-Y = []
+y = (y - y.min()) / (y.max() - y.min())
+minm, maxm = y.min(), y.max()
+
+seq_len = 10
+
+X, Y = [], []
+
 for i in range(0, 5900):
-	list1 = []
-	for j in range(i, i + Sequence_Length):
-		list1.append(y[j])
-	X.append(list1)
-	Y.append(y[j + 1])
+    X.append(y[i:i + seq_len])
+    Y.append(y[i + seq_len])
 
 X = np.array(X)
 Y = np.array(Y)
-#Split the data as the train and test set
-x_train, x_test, y_train, y_test = train_test_split(X, Y,test_size=0.10, random_state=42, shuffle=False, stratify=None)
-class NGTimeSeries(Dataset):
-	def __init__(self, x, y):	
-		self.x = torch.tensor(x, dtype=torch.float32)
-		self.y = torch.tensor(y, dtype=torch.float32)
-		self.len = x.shape[0]
-	
-	def __getitem__(self, idx):
-		return self.x[idx], self.y[idx]
-	
-	def __len__(self):
-		return self.len
-dataset = NGTimeSeries(x_train,y_train)
-from torch.utils.data import DataLoader
-train_loader = DataLoader(dataset,shuffle=True,batch_size=256)
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.1, shuffle=False)
 
 
-class RNNModel(nn.Module):
-	def __init__(self):
-		super(RNNModel,self).__init__()
-		self.rnn = nn.RNN(input_size=1,hidden_size=5,num_layers=1,batch_first=True)
-		self.fc1 = nn.Linear(in_features=5,out_features=1)
-	def forward(self,x):
-		output,_status = self.rnn(x)
-		output = output[:,-1,:]
-		output = self.fc1(torch.relu(output))
-		return output
+class TimeSeries(Dataset):
+    def __init__(self, x, y):
+        self.x = torch.tensor(x, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.float32)
 
-model = RNNModel()
-# optimizer , loss
-criterion = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-epochs = 1500
+    def __getitem__(self, idx):
+        return self.x[idx], self.y[idx]
 
-for i in range(epochs):
-	for j, data in enumerate(train_loader):
-		y_pred = model(data[:][0].view(-1, Sequence_Length,1)).reshape(-1)
-		loss = criterion(y_pred, data[:][1])
-		loss.backward()
-		optimizer.step()
-	if i % 50 == 0:
-		print(i, "th iteration : ", loss)
-#test set actual vs predicted
-test_set = NGTimeSeries(x_test,y_test)
-test_pred = model(test_set[:][0].view(-1,10,1)).view(-1)
-plt.plot(test_pred.detach().numpy(),label='predicted')
-plt.plot(test_set[:][1].view(-1),label='original')
+    def __len__(self):
+        return len(self.x)
+
+
+train_loader = DataLoader(TimeSeries(x_train, y_train), batch_size=256, shuffle=True)
+
+
+class RNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.rnn = nn.RNN(1, 5, batch_first=True)
+        self.fc = nn.Linear(5, 1)
+
+    def forward(self, x):
+        out, _ = self.rnn(x)
+        return self.fc(torch.relu(out[:, -1]))
+
+
+model = RNN()
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.0001)
+
+for ep in range(1500):
+    for xb, yb in train_loader:
+        optimizer.zero_grad()
+        out = model(xb.view(-1, seq_len, 1)).view(-1)
+        loss = criterion(out, yb)
+        loss.backward()
+        optimizer.step()
+    if ep % 50 == 0:
+        print(f"Epoch {ep} | Loss: {loss.item():.6f}")
+
+test_set = TimeSeries(x_test, y_test)
+pred = model(test_set[:][0].view(-1, seq_len, 1)).view(-1)
+
+plt.plot(pred.detach().numpy(), label='predicted')
+plt.plot(test_set[:][1].view(-1), label='actual')
 plt.legend()
 plt.show()
-#Undo normalization
-y = y * (maxm - minm) + minm
-y_pred = test_pred.detach().numpy() * (maxm - minm) + minm
-plt.plot(y)
-plt.plot(range(len(y)-len(y_pred), len(y)), y_pred)
+
+# Undo normalization
+y_true = y * (maxm - minm) + minm
+y_pred = pred.detach().numpy() * (maxm - minm) + minm
+plt.plot(y_true)
+plt.plot(range(len(y_true) - len(y_pred), len(y_true)), y_pred)
 plt.show()
